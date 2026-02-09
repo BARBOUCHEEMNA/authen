@@ -1,6 +1,9 @@
 import React from 'react';
 
-function Header({ setShowUserMenu, showUserMenu, setCurrentPage }) {
+function Header({ setShowUserMenu, showUserMenu, setCurrentPage, currentUser, onLogout }) {
+  const username = currentUser?.username || 'User';
+  const userInitial = username.charAt(0).toUpperCase();
+
   return (
     <header style={{
       background: 'rgba(15, 23, 42, 0.8)',
@@ -65,7 +68,7 @@ function Header({ setShowUserMenu, showUserMenu, setCurrentPage }) {
             onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            B
+            {userInitial}
           </button>
           
           {/* Dropdown Menu */}
@@ -105,7 +108,7 @@ function Header({ setShowUserMenu, showUserMenu, setCurrentPage }) {
                   fontWeight: '700',
                   boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
                 }}>
-                  B
+                  {userInitial}
                 </div>
                 <div>
                   <div style={{
@@ -114,14 +117,14 @@ function Header({ setShowUserMenu, showUserMenu, setCurrentPage }) {
                     color: '#fff',
                     marginBottom: '2px'
                   }}>
-                    Barboucheyassmine2506
+                    {username}
                   </div>
                   <div style={{
                     fontSize: '12px',
                     color: '#94a3b8',
                     fontWeight: '500'
                   }}>
-                    admin
+                    Administrator
                   </div>
                 </div>
               </div>
@@ -140,48 +143,10 @@ function Header({ setShowUserMenu, showUserMenu, setCurrentPage }) {
                   My Account
                 </div>
 
-                {/* Profile Button */}
-                <button
-                  onClick={() => {
-                    setCurrentPage('profile');
-                    setShowUserMenu(false);
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '12px 16px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: '#cbd5e1',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    textAlign: 'left'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#cbd5e1';
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                  Profile
-                </button>
-
                 {/* Logout Button */}
                 <button
                   onClick={() => {
-                    alert('Logging out...');
+                    onLogout();
                     setShowUserMenu(false);
                   }}
                   style={{

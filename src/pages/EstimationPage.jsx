@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Settings } from 'lucide-react';
+import SearchBar from '../components/SearchBar';
 
 function EstimationPage() {
   const [analyzedDocs, setAnalyzedDocs] = useState('');
   const [detectedAnomalies, setDetectedAnomalies] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [result, setResult] = useState(null);
 
   const calculateEstimation = () => {
@@ -49,6 +51,8 @@ function EstimationPage() {
           </p>
         </div>
       </div>
+
+      <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder='Filter estimations by criteria...' />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         {/* Input Parameters */}

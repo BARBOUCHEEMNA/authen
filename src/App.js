@@ -7,6 +7,7 @@ import Sidebar from './layout/Sidebar';
 import Header from './layout/Header';
 
 // Pages
+import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import UniversitiesPage from './pages/UniversitiesPage';
 import TemplatesPage from './pages/TemplatesPage';
@@ -16,6 +17,8 @@ import EstimationPage from './pages/EstimationPage';
 
 // Main App Component
 export default function AuthentiQaApp() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -31,12 +34,36 @@ export default function AuthentiQaApp() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu]);
 
+  const handleLogin = (userData) => {
+    setCurrentUser(userData);
+    setIsLoggedIn(true);
+    setCurrentPage('dashboard');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+    setCurrentPage('dashboard');
+    setShowUserMenu(false);
+  };
+
+  // Conditional rendering based on login status
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   return (
     <div style={{ fontFamily: '"Spline Sans", "Outfit", sans-serif', minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
       <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
       <main style={{ marginLeft: '240px', minHeight: '100vh' }}>
-        <Header setShowUserMenu={setShowUserMenu} showUserMenu={showUserMenu} setCurrentPage={setCurrentPage} />
+        <Header
+          setShowUserMenu={setShowUserMenu}
+          showUserMenu={showUserMenu}
+          setCurrentPage={setCurrentPage}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
 
         {/* Page Content */}
         <div style={{ padding: '40px' }}>

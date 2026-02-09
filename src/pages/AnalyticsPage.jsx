@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileText, AlertTriangle, TrendingUp, BarChart3 } from 'lucide-react';
+import SearchBar from '../components/SearchBar';
 
 function AnalyticsPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const fraudTypesData = [
+    { label: 'Logo', value: 180, color: '#3b82f6' },
+    { label: 'Font', value: 145, color: '#14b8a6' },
+    { label: 'Stamp', value: 115, color: '#f59e0b' },
+    { label: 'Layout', value: 95, color: '#ec4899' }
+  ];
+  
+  const filteredFraudTypes = searchTerm
+    ? fraudTypesData.filter(item => item.label.toLowerCase().includes(searchTerm.toLowerCase()))
+    : fraudTypesData;
   const monthlyData = [
     { month: 'Jan', value: 28 },
     { month: 'Feb', value: 38 },
@@ -39,6 +52,8 @@ function AnalyticsPage() {
         <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>Analytics</h2>
         <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>Comprehensive fraud detection statistics and trends</p>
       </div>
+
+      <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder='Filter analytics by metric...' />
 
       {/* Top Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
@@ -108,12 +123,7 @@ function AnalyticsPage() {
             </h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {[
-              { label: 'Logo', value: 180, color: '#3b82f6' },
-              { label: 'Font', value: 145, color: '#14b8a6' },
-              { label: 'Stamp', value: 115, color: '#f59e0b' },
-              { label: 'Layout', value: 95, color: '#ec4899' }
-            ].map((item) => (
+            {filteredFraudTypes.map((item) => (
               <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{
                   width: '80px',

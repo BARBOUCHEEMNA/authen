@@ -1,44 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BarChart3, FileText } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import SearchBar from '../components/SearchBar';
 
 function DashboardPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const statCardsData = [
+    { title: 'Total Documents', value: '12,847', subtitle: 'Analyzed this year', change: '+12.5% vs last month', color: '#3b82f6', icon: '📄' },
+    { title: 'Frauds Detected', value: '423', subtitle: 'Cases flagged', change: '3.2% vs last month', color: '#f59e0b', icon: '⚠️' },
+    { title: 'Fraud Rate', value: '3.29%', subtitle: 'Detection accuracy', change: '', color: '#14b8a6', icon: '📊' },
+    { title: 'Universities', value: '5', subtitle: 'Active partners', change: '+8.1% vs last month', color: '#22c55e', icon: '🎓' }
+  ];
+
+  const filteredCards = searchTerm
+    ? statCardsData.filter(card => card.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    : statCardsData;
+
   return (
     <div>
+      <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder='Search stats...' />
+      
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-        <StatCard
-          title="Total Documents"
-          value="12,847"
-          subtitle="Analyzed this year"
-          change="+12.5% vs last month"
-          color="#3b82f6"
-          icon="📄"
-        />
-        <StatCard
-          title="Frauds Detected"
-          value="423"
-          subtitle="Cases flagged"
-          change="3.2% vs last month"
-          color="#f59e0b"
-          icon="⚠️"
-        />
-        <StatCard
-          title="Fraud Rate"
-          value="3.29%"
-          subtitle="Detection accuracy"
-          change=""
-          color="#14b8a6"
-          icon="📊"
-        />
-        <StatCard
-          title="Universities"
-          value="5"
-          subtitle="Active partners"
-          change="+8.1% vs last month"
-          color="#22c55e"
-          icon="🎓"
-        />
+        {filteredCards.map((card) => (
+          <StatCard
+            key={card.title}
+            title={card.title}
+            value={card.value}
+            subtitle={card.subtitle}
+            change={card.change}
+            color={card.color}
+            icon={card.icon}
+          />
+        ))}
       </div>
 
       {/* Charts Row */}

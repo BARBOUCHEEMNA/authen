@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Edit, Trash2, FileText } from 'lucide-react';
+import SearchBar from '../components/SearchBar';
 
 function TemplatesPage() {
+  const [searchTerm, setSearchTerm] = useState('');
   const templates = [
     { university: 'Medtech', docType: 'Transcript', font: 'Times New Roman', version: 'v2.1', stamp: 'Yes', created: '2024-01-20' },
     { university: 'Medtech', docType: 'Diploma', font: 'Garamond', version: 'v3.0', stamp: 'Yes', created: '2024-01-22' },
@@ -11,6 +13,14 @@ function TemplatesPage() {
     { university: 'MSE', docType: 'Transcript', font: 'Palatino', version: 'v1.8', stamp: 'Yes', created: '2024-03-01' }
   ];
 
+  const filteredTemplates = searchTerm
+    ? templates.filter(template =>
+        template.university.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        template.docType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        template.font.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : templates;
+
   return (
     <div>
       <div style={{ marginBottom: '32px' }}>
@@ -18,22 +28,7 @@ function TemplatesPage() {
         <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>Manage document templates for each university</p>
       </div>
 
-      <input
-        type="text"
-        placeholder="Search..."
-        style={{
-          width: '100%',
-          maxWidth: '400px',
-          padding: '14px 20px',
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '10px',
-          color: '#fff',
-          fontSize: '14px',
-          marginBottom: '24px',
-          outline: 'none'
-        }}
-      />
+      <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder='Search templates by university, document type, or font...' />
 
       <div style={{
         background: 'rgba(255, 255, 255, 0.03)',
@@ -61,7 +56,7 @@ function TemplatesPage() {
             </tr>
           </thead>
           <tbody>
-            {templates.map((template, idx) => (
+            {filteredTemplates.map((template, idx) => (
               <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                 <td style={{ padding: '20px 24px', color: '#fff', fontSize: '14px', fontWeight: '500' }}>{template.university}</td>
                 <td style={{ padding: '20px 24px' }}>

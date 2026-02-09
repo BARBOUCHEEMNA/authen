@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
+import SearchBar from '../components/SearchBar';
 
 function FraudCasesPage() {
+  const [searchTerm, setSearchTerm] = useState('');
   const fraudCases = [
     { id: 'DOC-2024-001', university: 'Medtech', type: 'Logo', confidence: 94.5, date: '2024-12-01' },
     { id: 'DOC-2024-002', university: 'Esprit', type: 'Font', confidence: 87.2, date: '2024-12-03' },
@@ -12,6 +14,14 @@ function FraudCasesPage() {
     { id: 'DOC-2024-007', university: 'Esprit', type: 'Stamp', confidence: 92.7, date: '2024-12-14' },
     { id: 'DOC-2024-008', university: 'MSE', type: 'Layout', confidence: 85.6, date: '2024-12-16' }
   ];
+
+  const filteredFraudCases = searchTerm
+    ? fraudCases.filter(fraudCase =>
+        fraudCase.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        fraudCase.university.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        fraudCase.type.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : fraudCases;
 
   const typeCounts = {
     Logo: 3,
@@ -69,22 +79,7 @@ function FraudCasesPage() {
         })}
       </div>
 
-      <input
-        type="text"
-        placeholder="Search..."
-        style={{
-          width: '100%',
-          maxWidth: '400px',
-          padding: '14px 20px',
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '10px',
-          color: '#fff',
-          fontSize: '14px',
-          marginBottom: '24px',
-          outline: 'none'
-        }}
-      />
+      <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder='Search fraud cases by ID, university, or type...' />
 
       <div style={{
         background: 'rgba(255, 255, 255, 0.03)',
@@ -112,7 +107,7 @@ function FraudCasesPage() {
             </tr>
           </thead>
           <tbody>
-            {fraudCases.map((fraudCase, idx) => {
+            {filteredFraudCases.map((fraudCase, idx) => {
               const typeColors = {
                 Logo: '#3b82f6',
                 Font: '#14b8a6',
