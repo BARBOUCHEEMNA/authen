@@ -1,24 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
+import { apiClient } from '../utils/apiClient';
 
 function FraudCasesPage() {
-  const fraudCases = [
-    { id: 'DOC-2024-001', university: 'Medtech', type: 'Logo', confidence: 94.5, date: '2024-12-01' },
-    { id: 'DOC-2024-002', university: 'Esprit', type: 'Font', confidence: 87.2, date: '2024-12-03' },
-    { id: 'DOC-2024-003', university: 'INSAT', type: 'Stamp', confidence: 91.8, date: '2024-12-05' },
-    { id: 'DOC-2024-004', university: 'Medtech', type: 'Layout', confidence: 78.3, date: '2024-12-07' },
-    { id: 'DOC-2024-005', university: 'ENIT', type: 'Logo', confidence: 96.1, date: '2024-12-10' },
-    { id: 'DOC-2024-006', university: 'INSAT', type: 'Font', confidence: 89.4, date: '2024-12-12' },
-    { id: 'DOC-2024-007', university: 'Esprit', type: 'Stamp', confidence: 92.7, date: '2024-12-14' },
-    { id: 'DOC-2024-008', university: 'MSE', type: 'Layout', confidence: 85.6, date: '2024-12-16' }
-  ];
+  const [fraudCases, setFraudCases] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const typeCounts = {
-    Logo: 3,
-    Font: 3,
-    Stamp: 2,
-    Layout: 2
-  };
+  useEffect(() => {
+    const fetchFraudCases = async () => {
+      try {
+        const data = await apiClient.getFraudCases();
+        if (Array.isArray(data)) {
+          setFraudCases(data);
+        } else {
+          // Default data if API returns empty
+          setFraudCases([
+            { _id: '1', caseId: 'DOC-2024-001', university: 'Medtech', fraudType: 'Logo', severity: 'high', detectedDate: '2024-12-01' },
+            { _id: '2', caseId: 'DOC-2024-002', university: 'Esprit', fraudType: 'Font', severity: 'medium', detectedDate: '2024-12-03' },
+            { _id: '3', caseId: 'DOC-2024-003', university: 'INSAT', fraudType: 'Stamp', severity: 'high', detectedDate: '2024-12-05' },
+            { _id: '4', caseId: 'DOC-2024-004', university: 'Medtech', fraudType: 'Layout', severity: 'low', detectedDate: '2024-12-07' },
+            { _id: '5', caseId: 'DOC-2024-005', university: 'ENIT', fraudType: 'Logo', severity: 'high', detectedDate: '2024-12-10' },
+            { _id: '6', caseId: 'DOC-2024-006', university: 'INSAT', fraudType: 'Font', severity: 'medium', detectedDate: '2024-12-12' },
+            { _id: '7', caseId: 'DOC-2024-007', university: 'Esprit', fraudType: 'Stamp', severity: 'high', detectedDate: '2024-12-14' },
+            { _id: '8', caseId: 'DOC-2024-008', university: 'MSE', fraudType: 'Layout', severity: 'medium', detectedDate: '2024-12-16' }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching fraud cases:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFraudCases();
+  }, []);
+
+  const typeCounts = fraudCases.reduce((acc, c) => {
+    acc[c.fraudType] = (acc[c.fraudType] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div>
@@ -29,12 +49,16 @@ function FraudCasesPage() {
           <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>View and manage detected fraud cases</p>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: '14px', color: '#94a3b8' }}>
-          Total Cases: <span style={{ color: '#fff', fontWeight: '600', fontSize: '16px' }}>10</span>
+          Total Cases: <span style={{ color: '#fff', fontWeight: '600', fontSize: '16px' }}>{fraudCases.length}</span>
         </div>
       </div>
 
+      {loading ? (
+        <div style={{ color: '#fff', fontSize: '18px' }}>Loading fraud cases...</div>
+      ) : (
+      <>
       {/* Type Filter Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
         {Object.entries(typeCounts).map(([type, count]) => {
           const colors = {
             Logo: '#3b82f6',
@@ -119,12 +143,17 @@ function FraudCasesPage() {
                 Stamp: '#f59e0b',
                 Layout: '#ec4899'
               };
-              const color = typeColors[fraudCase.type];
+              const color = typeColors[fraudCase.fraudType];
+              const severityEmojis = {
+                low: '🟢',
+                medium: '🟡',
+                high: '🔴'
+              };
               
               return (
-                <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <tr key={fraudCase._id || idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                   <td style={{ padding: '20px 24px', color: '#fff', fontSize: '14px', fontFamily: 'monospace', fontWeight: '600' }}>
-                    {fraudCase.id}
+                    {fraudCase.caseId}
                   </td>
                   <td style={{ padding: '20px 24px', color: '#cbd5e1', fontSize: '14px' }}>{fraudCase.university}</td>
                   <td style={{ padding: '20px 24px' }}>
@@ -136,38 +165,25 @@ function FraudCasesPage() {
                       fontSize: '12px',
                       fontWeight: '600'
                     }}>
-                      {fraudCase.type}
+                      {fraudCase.fraudType}
                     </span>
                   </td>
                   <td style={{ padding: '20px 24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '100px',
-                        height: '8px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{
-                          width: `${fraudCase.confidence}%`,
-                          height: '100%',
-                          background: fraudCase.confidence > 90 ? '#ef4444' : fraudCase.confidence > 85 ? '#f59e0b' : '#94a3b8',
-                          borderRadius: '4px'
-                        }} />
-                      </div>
-                      <span style={{
-                        background: fraudCase.confidence > 90 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                        color: fraudCase.confidence > 90 ? '#ef4444' : '#f59e0b',
-                        padding: '4px 10px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: '700'
-                      }}>
-                        {fraudCase.confidence}%
-                      </span>
-                    </div>
+                    <span style={{
+                      background: fraudCase.severity === 'high' ? 'rgba(239, 68, 68, 0.15)' : fraudCase.severity === 'medium' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                      color: fraudCase.severity === 'high' ? '#ef4444' : fraudCase.severity === 'medium' ? '#f59e0b' : '#22c55e',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      textTransform: 'capitalize'
+                    }}>
+                      {severityEmojis[fraudCase.severity]} {fraudCase.severity}
+                    </span>
                   </td>
-                  <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px' }}>{fraudCase.date}</td>
+                  <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px' }}>
+                    {new Date(fraudCase.detectedDate).toLocaleDateString()}
+                  </td>
                   <td style={{ padding: '20px 24px' }}>
                     <button style={{
                       background: 'transparent',
@@ -185,6 +201,8 @@ function FraudCasesPage() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </div>
   );
 }

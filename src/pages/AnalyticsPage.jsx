@@ -1,23 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, AlertTriangle, TrendingUp, BarChart3 } from 'lucide-react';
+import { apiClient } from '../utils/apiClient';
 
 function AnalyticsPage() {
-  const monthlyData = [
-    { month: 'Jan', value: 28 },
-    { month: 'Feb', value: 38 },
-    { month: 'Mar', value: 42 },
-    { month: 'Apr', value: 32 },
-    { month: 'May', value: 36 },
-    { month: 'Jun', value: 48 },
-    { month: 'Jul', value: 54 },
-    { month: 'Aug', value: 46 },
-    { month: 'Sep', value: 30 },
-    { month: 'Oct', value: 35 },
-    { month: 'Nov', value: 26 },
-    { month: 'Dec', value: 25 }
-  ];
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const data = await apiClient.getAnalyticsData();
+        if (Array.isArray(data) && data.length > 0) {
+          setMonthlyData(data);
+        } else {
+          // Default data if API returns empty
+          setMonthlyData([
+            { month: 'Jan', fraudCount: 28 },
+            { month: 'Feb', fraudCount: 38 },
+            { month: 'Mar', fraudCount: 42 },
+            { month: 'Apr', fraudCount: 32 },
+            { month: 'May', fraudCount: 36 },
+            { month: 'Jun', fraudCount: 48 },
+            { month: 'Jul', fraudCount: 54 },
+            { month: 'Aug', fraudCount: 46 },
+            { month: 'Sep', fraudCount: 30 },
+            { month: 'Oct', fraudCount: 35 },
+            { month: 'Nov', fraudCount: 26 },
+            { month: 'Dec', fraudCount: 25 }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
   
-  const maxValue = Math.max(...monthlyData.map(d => d.value));
+  if (loading) {
+    return <div style={{ color: '#fff', fontSize: '18px' }}>Loading analytics...</div>;
+  }
+
+  const chartData = monthlyData.map(d => ({
+    month: d.month,
+    value: d.fraudCount || d.value || 0
+  }));
+
+  const maxValue = chartData.length > 0 
+    ? Math.max(...chartData.map(d => d.value), 60) 
+    : 60;
   const chartHeight = 300;
   const chartWidth = 1100;
   const padding = { top: 20, right: 40, bottom: 40, left: 60 };
@@ -25,9 +58,9 @@ function AnalyticsPage() {
   const innerHeight = chartHeight - padding.top - padding.bottom;
   
   // Create path for area chart
-  const points = monthlyData.map((d, i) => ({
+  const points = chartData.map((d, i) => ({
     x: padding.left + (i / (monthlyData.length - 1)) * innerWidth,
-    y: padding.top + innerHeight - (d.value / 60) * innerHeight
+    y: padding.top + innerHeight - (d.value / maxValue) * innerHeight
   }));
   
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');

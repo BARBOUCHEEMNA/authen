@@ -1,31 +1,78 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, FileText } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import { apiClient } from '../utils/apiClient';
 
 function DashboardPage() {
+  const [stats, setStats] = useState(null);
+  const [fraudData, setFraudData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsData, fraudDetectionData] = await Promise.all([
+          apiClient.getDashboardStats(),
+          apiClient.getFraudDetectionData()
+        ]);
+        
+        if (statsData) {
+          setStats(statsData);
+        }
+        if (fraudDetectionData && Array.isArray(fraudDetectionData)) {
+          setFraudData(fraudDetectionData);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div style={{ color: '#fff', fontSize: '18px' }}>Loading dashboard...</div>;
+  }
+
+  const displayStats = stats || {
+    totalDocuments: 12847,
+    totalDocumentsChange: '+12.5%',
+    fraudsDetected: 423,
+    fraudsDetectedChange: '3.2%',
+    fraudRate: 3.29,
+    activeUniversities: 5,
+    universitiesChange: '+8.1%'
+  };
+
+  const maxFraudValue = fraudData.length > 0 
+    ? Math.max(...fraudData.map(d => d.value || 0))
+    : 160;
+
   return (
     <div>
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '40px' }}>
         <StatCard
           title="Total Documents"
-          value="12,847"
+          value={displayStats.totalDocuments?.toLocaleString()}
           subtitle="Analyzed this year"
-          change="+12.5% vs last month"
+          change={`${displayStats.totalDocumentsChange} vs last month`}
           color="#3b82f6"
           icon="📄"
         />
         <StatCard
           title="Frauds Detected"
-          value="423"
+          value={displayStats.fraudsDetected?.toLocaleString()}
           subtitle="Cases flagged"
-          change="3.2% vs last month"
+          change={`${displayStats.fraudsDetectedChange} vs last month`}
           color="#f59e0b"
           icon="⚠️"
         />
         <StatCard
           title="Fraud Rate"
-          value="3.29%"
+          value={`${displayStats.fraudRate}%`}
           subtitle="Detection accuracy"
           change=""
           color="#14b8a6"
@@ -33,9 +80,9 @@ function DashboardPage() {
         />
         <StatCard
           title="Universities"
-          value="5"
+          value={displayStats.activeUniversities}
           subtitle="Active partners"
-          change="+8.1% vs last month"
+          change={`${displayStats.universitiesChange} vs last month`}
           color="#22c55e"
           icon="🎓"
         />
@@ -58,33 +105,32 @@ function DashboardPage() {
             </h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {[
-              { label: 'Logo', value: 145, max: 160 },
-              { label: 'Font', value: 118, max: 160 },
-              { label: 'Stamp', value: 98, max: 160 },
-              { label: 'Layout', value: 62, max: 160 }
-            ].map((item) => (
-              <div key={item.label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '500' }}>{item.label}</span>
-                  <span style={{ fontSize: '14px', color: '#fff', fontWeight: '600' }}>{item.value}</span>
-                </div>
-                <div style={{
-                  height: '10px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  borderRadius: '5px',
-                  overflow: 'hidden'
-                }}>
+            {fraudData.length > 0 ? (
+              fraudData.map((item) => (
+                <div key={item.type || item._id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: '500' }}>{item.type}</span>
+                    <span style={{ fontSize: '14px', color: '#fff', fontWeight: '600' }}>{item.value}</span>
+                  </div>
                   <div style={{
-                    height: '100%',
-                    width: `${(item.value / item.max) * 100}%`,
-                    background: 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)',
+                    height: '10px',
+                    background: 'rgba(255, 255, 255, 0.05)',
                     borderRadius: '5px',
-                    transition: 'width 0.3s ease'
-                  }} />
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${(item.value / maxFraudValue) * 100}%`,
+                      background: item.color || 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)',
+                      borderRadius: '5px',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ color: '#94a3b8' }}>No fraud data available</p>
+            )}
           </div>
         </div>
 
