@@ -1,24 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 import SearchBar from '../components/SearchBar';
 import AddUniversityModal from '../components/AddUniversityModal';
+import { formatTimestamp } from '../utils/formatTimestamp';
 
 function UniversitiesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUniversity, setEditingUniversity] = useState(null);
-  const [universities, setUniversities] = useState([
-    { id: 1, name: 'Medtech', country: 'Tunisia', email: '@medtech.tn', status: 'active', created: '2024-01-15' },
-    { id: 2, name: 'Esprit', country: 'Tunisia', email: '@esprit.tn', status: 'active', created: '2024-01-20' },
-    { id: 3, name: 'INSAT', country: 'Tunisia', email: '@insat.tn', status: 'active', created: '2024-02-01' },
-    { id: 4, name: 'ENIT', country: 'Tunisia', email: '@enit.tn', status: 'active', created: '2024-02-10' },
-    { id: 5, name: 'MSE', country: 'Tunisia', email: '@mse.tn', status: 'active', created: '2024-02-15' }
-  ]);
+  const [universities, setUniversities] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchUniversities() {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const universitiesRef = collection(db, 'universities');
+        const snapshot = await getDocs(universitiesRef);
+
+        const rows = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            name: data.name || '',
+            country: data.country || data.country_name || '',
+            email: data.emailDomain || data.email_domain || data.email || '',
+            status: data.status || 'active',
+            created: formatTimestamp(
+              data.createdAt || data.created_at || data.created
+            ),
+          };
+        });
+
+        setUniversities(rows);
+      } catch (err) {
+        console.error('Error fetching universities:', err);
+        setError('Failed to load universities');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchUniversities();
+  }, []);
 
   const filteredUniversities = searchTerm
-    ? universities.filter(uni => 
-        uni.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        uni.email.toLowerCase().includes(searchTerm.toLowerCase())
+    ? universities.filter((uni) =>
+        (uni.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (uni.email || '').toLowerCase().includes(searchTerm.toLowerCase())
       )
     : universities;
 
@@ -49,14 +83,14 @@ function UniversitiesPage() {
         )
       );
     } else {
-      // Add new university
+      // Add new university locally (UI only). Persisting to Firestore can be added later.
       const newUniversity = {
-        id: Math.max(...universities.map((u) => u.id), 0) + 1,
+        id: Math.max(...universities.map((u) => parseInt(u.id, 10) || 0), 0) + 1,
         name: formData.name,
         country: formData.country,
         email: '@' + formData.email,
         status: formData.status,
-        created: new Date().toISOString().split('T')[0]
+        created: formatTimestamp(new Date()),
       };
       setUniversities((prev) => [...prev, newUniversity]);
     }
@@ -116,85 +150,95 @@ function UniversitiesPage() {
         overflow: 'hidden',
         backdropFilter: 'blur(10px)'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              {['University Name', 'Country', 'Email Domain', 'Status', 'Created', 'Actions'].map((header) => (
-                <th key={header} style={{
-                  padding: '16px 24px',
-                  textAlign: 'left',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#94a3b8',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUniversities.map((uni, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <td style={{ padding: '20px 24px', color: '#fff', fontSize: '14px', fontWeight: '500' }}>{uni.name}</td>
-                <td style={{ padding: '20px 24px', color: '#cbd5e1', fontSize: '14px' }}>{uni.country}</td>
-                <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px', fontFamily: 'monospace' }}>{uni.email}</td>
-                <td style={{ padding: '20px 24px' }}>
-                  <span style={{
-                    background: uni.status === 'active' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: uni.status === 'active' ? '#3b82f6' : '#ef4444',
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: '600'
+        {isLoading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#cbd5e1' }}>
+            Loading universities...
+          </div>
+        ) : error ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#fca5a5' }}>
+            {error}
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                {['University Name', 'Country', 'Email Domain', 'Status', 'Created', 'Actions'].map((header) => (
+                  <th key={header} style={{
+                    padding: '16px 24px',
+                    textAlign: 'left',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
                   }}>
-                    {uni.status}
-                  </span>
-                </td>
-                <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px' }}>{uni.created}</td>
-                <td style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                      onClick={() => handleOpenModal(uni)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#3b82f6',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        transition: 'color 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = '#60a5fa'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = '#3b82f6'}
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUniversity(uni.id)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        transition: 'color 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = '#f87171'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = '#ef4444'}
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </td>
+                    {header}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredUniversities.map((uni, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <td style={{ padding: '20px 24px', color: '#fff', fontSize: '14px', fontWeight: '500' }}>{uni.name}</td>
+                  <td style={{ padding: '20px 24px', color: '#cbd5e1', fontSize: '14px' }}>{uni.country}</td>
+                  <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px', fontFamily: 'monospace' }}>{uni.email}</td>
+                  <td style={{ padding: '20px 24px' }}>
+                    <span style={{
+                      background: uni.status === 'active' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                      color: uni.status === 'active' ? '#3b82f6' : '#ef4444',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      {uni.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px' }}>{uni.created}</td>
+                  <td style={{ padding: '20px 24px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={() => handleOpenModal(uni)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#3b82f6',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          transition: 'color 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#60a5fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#3b82f6'}
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUniversity(uni.id)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          transition: 'color 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#f87171'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#ef4444'}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <AddUniversityModal

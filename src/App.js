@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Layout Components
 import Sidebar from './layout/Sidebar';
@@ -13,43 +13,52 @@ import TemplatesPage from './pages/TemplatesPage';
 import FraudCasesPage from './pages/FraudCasesPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import EstimationPage from './pages/EstimationPage';
+import { useAuth } from './context/AuthContext';
 
 // Main App Component
 export default function AuthentiQaApp() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user, initializing, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Close dropdown when clicking outside
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (showUserMenu && !event.target.closest('[data-user-menu]')) {
         setShowUserMenu(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu]);
 
-  const handleLogin = (userData) => {
-    setCurrentUser(userData);
-    setIsLoggedIn(true);
-    setCurrentPage('dashboard');
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      setCurrentPage('dashboard');
+      setShowUserMenu(false);
+    }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setCurrentPage('dashboard');
-    setShowUserMenu(false);
-  };
-
-  // Conditional rendering based on login status
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (initializing) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+        Loading...
+      </div>
+    );
   }
+
+  // If no authenticated user, show login screen
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  const currentUser = {
+    username: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+    email: user.email || '',
+  };
 
   return (
     <div style={{ fontFamily: '"Spline Sans", "Outfit", sans-serif', minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>

@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import { Shield, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-function LoginPage({ onLogin }) {
+function LoginPage() {
+  const { login, signup } = useAuth();
+  const [mode, setMode] = useState('login'); // 'login' or 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleDemoLogin = () => {
+    setEmail('admin@authentiqa.tn');
+    setPassword('');
+    setPasswordConfirm('');
+    setError('');
+    setMode('login');
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    if (!email || !password) {
+
+    if (!email || !password || (mode === 'signup' && !passwordConfirm)) {
       setError('Please fill in all fields');
       return;
     }
@@ -22,16 +34,29 @@ function LoginPage({ onLogin }) {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin({ email, username: email.split('@')[0] });
-    }, 1000);
-  };
+    if (mode === 'signup' && password !== passwordConfirm) {
+      setError("Passwords don't match");
+      return;
+    }
 
-  const handleDemoLogin = () => {
-    onLogin({ email: 'admin@authentiqa.tn', username: 'admin' });
+    setIsLoading(true);
+    try {
+      if (mode === 'login') {
+        await login(email, password);
+      } else {
+        await signup(email, password);
+      }
+      // AuthContext onAuthStateChanged will update the app and redirect to dashboard
+    } catch (err) {
+      console.error('Auth error:', err);
+      if (mode === 'login') {
+        setError('Failed to sign in. Please check your credentials.');
+      } else {
+        setError('Failed to create account. This email may already be in use.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -117,8 +142,8 @@ function LoginPage({ onLogin }) {
           </p>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin}>
+        {/* Auth Form */}
+        <form onSubmit={handleSubmit}>
           <div style={{
             background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%)',
             backdropFilter: 'blur(12px)',
@@ -182,7 +207,7 @@ function LoginPage({ onLogin }) {
             </div>
 
             {/* Password Field */}
-            <div style={{ marginBottom: '32px' }}>
+            <div style={{ marginBottom: mode === 'signup' ? '20px' : '32px' }}>
               <label style={{
                 display: 'block',
                 fontSize: '13px',
@@ -257,6 +282,62 @@ function LoginPage({ onLogin }) {
               </div>
             </div>
 
+            {/* Confirm Password (Sign Up only) */}
+            {mode === 'signup' && (
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#cbd5e1',
+                  marginBottom: '8px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  Confirm Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={18} style={{
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#94a3b8',
+                    pointerEvents: 'none'
+                  }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordConfirm}
+                    onChange={(e) => {
+                      setPasswordConfirm(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px 14px 50px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'all 0.2s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.03)';
+                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div style={{
@@ -283,7 +364,7 @@ function LoginPage({ onLogin }) {
               </div>
             )}
 
-            {/* Login Button */}
+            {/* Primary Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -330,14 +411,14 @@ function LoginPage({ onLogin }) {
                     borderRadius: '50%',
                     animation: 'spin 0.8s linear infinite'
                   }} />
-                  Signing in...
+                  {mode === 'login' ? 'Signing in...' : 'Creating account...'}
                 </>
               ) : (
-                'Sign In'
+                mode === 'login' ? 'Sign In' : 'Create Account'
               )}
             </button>
 
-            {/* Demo Login */}
+            {/* Secondary Actions */}
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
               <button
                 type="button"
@@ -363,7 +444,34 @@ function LoginPage({ onLogin }) {
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                 }}
               >
-                Try Demo
+                Fill Demo Email
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === 'login' ? 'signup' : 'login');
+                  setError('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  color: '#60a5fa',
+                  border: '1px solid rgba(96, 165, 250, 0.5)',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(96, 165, 250, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                {mode === 'login' ? 'Create an account' : 'Already have an account?'}
               </button>
             </div>
           </div>
