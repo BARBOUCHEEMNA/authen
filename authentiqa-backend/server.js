@@ -9,10 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
+// Database Connection (API backend). Frontend data is now served from Firebase.
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/authentiqa')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log('MongoDB connection error:', err));
+  .then(() => console.log('Firebase backend connected'))
+  .catch(err => console.log('Firebase backend connection error:', err));
 
 // Routes
 app.use('/api/dashboard', require('./routes/dashboard'));
