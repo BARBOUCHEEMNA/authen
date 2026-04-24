@@ -32,7 +32,7 @@ function DashboardPage() {
       },
       (error) => {
         console.error('Error listening to system_stats/global_overview:', error);
-        setOverviewError('Failed to load system stats');
+        setOverviewError(`Error: ${error.message || 'Failed to load system stats'}`);
         setOverviewLoading(false);
       }
     );

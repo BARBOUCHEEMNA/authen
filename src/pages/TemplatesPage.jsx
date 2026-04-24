@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, FileText } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 

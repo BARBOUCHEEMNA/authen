@@ -37,7 +37,7 @@ function FraudCasesPage() {
         setFraudCases(rows);
       } catch (err) {
         console.error('Error fetching fraud cases:', err);
-        setError('Failed to load fraud cases');
+        setError(`Error: ${err.message || 'Failed to load fraud cases'}`);
       } finally {
         setIsLoading(false);
       }

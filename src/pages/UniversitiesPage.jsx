@@ -40,7 +40,7 @@ function UniversitiesPage() {
         setUniversities(rows);
       } catch (err) {
         console.error('Error fetching universities:', err);
-        setError('Failed to load universities');
+        setError(`Error: ${err.message || 'Failed to load universities'}`);
       } finally {
         setIsLoading(false);
       }
