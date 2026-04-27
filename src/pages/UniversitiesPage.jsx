@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import SearchBar from '../components/SearchBar';
 import AddUniversityModal from '../components/AddUniversityModal';
@@ -14,38 +14,36 @@ function UniversitiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    async function fetchUniversities() {
-      setIsLoading(true);
-      setError('');
+  const fetchUniversities = async () => {
+    setIsLoading(true);
+    setError('');
 
-      try {
-        const universitiesRef = collection(db, 'universities');
-        const snapshot = await getDocs(universitiesRef);
+    try {
+      const universitiesRef = collection(db, 'universities');
+      const snapshot = await getDocs(universitiesRef);
 
-        const rows = snapshot.docs.map((docSnap) => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
-            name: data.name || '',
-            country: data.country || data.country_name || '',
-            email: data.emailDomain || data.email_domain || data.email || '',
-            status: data.status || 'active',
-            created: formatTimestamp(
-              data.createdAt || data.created_at || data.created
-            ),
-          };
-        });
+      const rows = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data.name || '',
+          country: data.country || data.country_name || '',
+          email: data.emailDomain || data.email_domain || data.email || '',
+          status: data.status || 'active',
+          created: formatTimestamp(data.createdAt || data.created_at || data.created || new Date()),
+        };
+      });
 
-        setUniversities(rows);
-      } catch (err) {
-        console.error('Error fetching universities:', err);
-        setError(`Error: ${err.message || 'Failed to load universities'}`);
-      } finally {
-        setIsLoading(false);
-      }
+      setUniversities(rows);
+    } catch (err) {
+      console.error('Error fetching universities:', err);
+      setError(`Error: ${err.message || 'Failed to load universities'}`);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchUniversities();
   }, []);
 
@@ -66,40 +64,76 @@ function UniversitiesPage() {
     setEditingUniversity(null);
   };
 
-  const handleAddOrEditUniversity = (formData) => {
-    if (editingUniversity) {
-      // Edit existing university
-      setUniversities((prev) =>
-        prev.map((uni) =>
-          uni.id === editingUniversity.id
-            ? {
-                ...uni,
-                name: formData.name,
-                country: formData.country,
-                email: '@' + formData.email,
-                status: formData.status
-              }
-            : uni
-        )
-      );
-    } else {
-      // Add new university locally (UI only). Persisting to Firestore can be added later.
-      const newUniversity = {
-        id: Math.max(...universities.map((u) => parseInt(u.id, 10) || 0), 0) + 1,
-        name: formData.name,
-        country: formData.country,
-        email: '@' + formData.email,
-        status: formData.status,
-        created: formatTimestamp(new Date()),
-      };
-      setUniversities((prev) => [...prev, newUniversity]);
+  const handleAddOrEditUniversity = async (formData) => {
+    setError('');
+
+    try {
+      if (editingUniversity) {
+        const universityRef = doc(db, 'universities', editingUniversity.id);
+        await updateDoc(universityRef, {
+          name: formData.name,
+          country: formData.country,
+          email: formData.email.startsWith('@') ? formData.email : `@${formData.email}`,
+          status: formData.status,
+          updatedAt: new Date()
+        });
+        setUniversities((prev) =>
+          prev.map((uni) =>
+            uni.id === editingUniversity.id
+              ? {
+                  ...uni,
+                  name: formData.name,
+                  country: formData.country,
+                  email: formData.email.startsWith('@') ? formData.email : `@${formData.email}`,
+                  status: formData.status
+                }
+              : uni
+          )
+        );
+      } else {
+        const universitiesRef = collection(db, 'universities');
+        const createdDoc = await addDoc(universitiesRef, {
+          name: formData.name,
+          country: formData.country,
+          email: formData.email.startsWith('@') ? formData.email : `@${formData.email}`,
+          status: formData.status,
+          createdAt: new Date()
+        });
+
+        setUniversities((prev) => [
+          {
+            id: createdDoc.id,
+            name: formData.name,
+            country: formData.country,
+            email: formData.email.startsWith('@') ? formData.email : `@${formData.email}`,
+            status: formData.status,
+            created: formatTimestamp(new Date())
+          },
+          ...prev
+        ]);
+      }
+    } catch (err) {
+      console.error('Error saving university:', err);
+      setError(`Error: ${err.message || 'Could not save university'}`);
+    } finally {
+      handleCloseModal();
     }
-    handleCloseModal();
   };
 
-  const handleDeleteUniversity = (id) => {
-    if (window.confirm('Are you sure you want to delete this university?')) {
+  const handleDeleteUniversity = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this university?')) {
+      return;
+    }
+
+    setError('');
+
+    try {
+      const universityRef = doc(db, 'universities', id);
+      await deleteDoc(universityRef);
       setUniversities((prev) => prev.filter((uni) => uni.id !== id));
+    } catch (err) {
+      console.error('Error deleting university:', err);
+      setError(`Error: ${err.message || 'Could not delete university'}`);
     }
   };
 
@@ -108,7 +142,7 @@ function UniversitiesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
           <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>Universities</h2>
-          <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>Manage partner universities and their settings</p>
+          <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>Manage MedTech/MSB partner universities and settings.</p>
         </div>
         <button
           onClick={() => handleOpenModal()}
@@ -151,12 +185,12 @@ function UniversitiesPage() {
         backdropFilter: 'blur(10px)'
       }}>
         {isLoading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#cbd5e1' }}>
-            Loading universities...
-          </div>
+          <div style={{ padding: '40px', textAlign: 'center', color: '#cbd5e1' }}>Loading universities...</div>
         ) : error ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#fca5a5' }}>
-            {error}
+          <div style={{ padding: '40px', textAlign: 'center', color: '#fca5a5' }}>{error}</div>
+        ) : filteredUniversities.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#cbd5e1' }}>
+            No universities found. Add a MedTech/MSB partner or check your backend data.
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -178,8 +212,8 @@ function UniversitiesPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredUniversities.map((uni, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              {filteredUniversities.map((uni) => (
+                <tr key={uni.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                   <td style={{ padding: '20px 24px', color: '#fff', fontSize: '14px', fontWeight: '500' }}>{uni.name}</td>
                   <td style={{ padding: '20px 24px', color: '#cbd5e1', fontSize: '14px' }}>{uni.country}</td>
                   <td style={{ padding: '20px 24px', color: '#94a3b8', fontSize: '14px', fontFamily: 'monospace' }}>{uni.email}</td>

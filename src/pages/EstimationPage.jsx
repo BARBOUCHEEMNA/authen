@@ -1,298 +1,333 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
+import { apiClient } from '../utils/apiClient';
 
 function EstimationPage() {
-  const [analyzedDocs, setAnalyzedDocs] = useState('');
-  const [detectedAnomalies, setDetectedAnomalies] = useState('');
+  const [stats, setStats] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [result, setResult] = useState(null);
+  const [analyzedDocuments, setAnalyzedDocuments] = useState(1000);
+  const [detectedAnomalies, setDetectedAnomalies] = useState(35);
+  const [estimationResult, setEstimationResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadStats = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const dashboardStats = await apiClient.getDashboardStats();
+        setStats(dashboardStats || null);
+        
+        // Pre-populate with backend data if available
+        if (dashboardStats?.total_documents) {
+          setAnalyzedDocuments(Number(dashboardStats.total_documents));
+        }
+        if (dashboardStats?.frauds_detected != null) {
+          setDetectedAnomalies(Number(dashboardStats.frauds_detected));
+        }
+      } catch (err) {
+        console.error('Error loading stats:', err);
+        setError('Unable to load backend data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStats();
+  }, []);
 
   const calculateEstimation = () => {
-    const docs = parseInt(analyzedDocs) || 0;
-    const anomalies = parseInt(detectedAnomalies) || 0;
-    
-    if (docs > 0 && anomalies >= 0) {
-      const forgeryRate = ((anomalies / docs) * 100).toFixed(2);
-      const confidenceLevel = anomalies > 0 ? Math.min(95, 70 + (anomalies / docs) * 100).toFixed(1) : 0;
-      
-      let riskLevel = 'Low';
-      let riskColor = '#22c55e';
-      
-      if (parseFloat(forgeryRate) > 5) {
-        riskLevel = 'High';
-        riskColor = '#ef4444';
-      } else if (parseFloat(forgeryRate) > 2) {
-        riskLevel = 'Medium';
-        riskColor = '#f59e0b';
-      }
-      
-      setResult({
-        forgeryRate,
-        confidenceLevel,
-        riskLevel,
-        riskColor,
-        authenticDocs: docs - anomalies,
-        forgedDocs: anomalies
-      });
+    if (analyzedDocuments <= 0) {
+      alert('Number of analyzed documents must be greater than 0');
+      return;
     }
+
+    const forgeryRate = (detectedAnomalies / analyzedDocuments) * 100;
+    const confidenceLevel = Math.max(0, 100 - (Math.abs(detectedAnomalies - analyzedDocuments * 0.03) / (analyzedDocuments * 0.05)) * 10);
+
+    setEstimationResult({
+      forgeryRate: forgeryRate.toFixed(2),
+      confidenceLevel: Math.min(100, Math.max(0, confidenceLevel)).toFixed(1),
+      riskLevel: forgeryRate > 5 ? 'High' : forgeryRate > 2 ? 'Medium' : 'Low',
+      analysisDate: new Date().toLocaleDateString()
+    });
   };
+
+  const handleInputChange = (e, setter) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setter(Number(value) || 0);
+    setEstimationResult(null);
+  };
+
+  const riskColor = estimationResult?.riskLevel === 'High' ? '#ef4444' : estimationResult?.riskLevel === 'Medium' ? '#f59e0b' : '#22c55e';
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-        <Settings size={28} color="#3b82f6" />
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '4px' }}>
-            Forgery Estimation
-          </h2>
-          <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>
-            Estimate forgery probability based on analyzed documents and detected anomalies
-          </p>
-        </div>
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>
+          Forgery Estimation
+        </h2>
+        <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>
+          Estimate forgery probability based on analyzed documents and detected anomalies
+        </p>
       </div>
 
-      <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder='Filter estimations by criteria...' />
+      <SearchBar
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder='Filter estimations by criteria...'
+      />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        {/* Input Parameters */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          padding: '32px',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>
-            Input Parameters
-          </h3>
-          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '32px' }}>
-            Enter the number of analyzed documents and detected anomalies to calculate the estimated forgery rate.
-          </p>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ fontSize: '14px', fontWeight: '600', color: '#cbd5e1', display: 'block', marginBottom: '8px' }}>
-              Number of Analyzed Documents
-            </label>
-            <input
-              type="text"
-              placeholder="e.g., 1000"
-              value={analyzedDocs}
-              onChange={(e) => setAnalyzedDocs(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px 18px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
-                color: '#fff',
-                fontSize: '15px',
-                outline: 'none',
-                transition: 'all 0.2s ease'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#3b82f6';
-                e.target.style.background = 'rgba(59, 130, 246, 0.05)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-              }}
-            />
-            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', marginBottom: 0 }}>
-              Total documents processed by the authentication system
-            </p>
-          </div>
-
-          <div style={{ marginBottom: '32px' }}>
-            <label style={{ fontSize: '14px', fontWeight: '600', color: '#cbd5e1', display: 'block', marginBottom: '8px' }}>
-              Number of Detected Anomalies
-            </label>
-            <input
-              type="text"
-              placeholder="e.g., 35"
-              value={detectedAnomalies}
-              onChange={(e) => setDetectedAnomalies(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px 18px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
-                color: '#fff',
-                fontSize: '15px',
-                outline: 'none',
-                transition: 'all 0.2s ease'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#3b82f6';
-                e.target.style.background = 'rgba(59, 130, 246, 0.05)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-              }}
-            />
-            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', marginBottom: 0 }}>
-              Documents flagged as potentially forged (logo, font, stamp, or layout issues)
-            </p>
-          </div>
-
-          <button
-            onClick={calculateEstimation}
-            style={{
-              width: '100%',
-              padding: '16px 24px',
-              background: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)',
-              border: 'none',
-              borderRadius: '10px',
-              color: '#fff',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: '0 4px 16px rgba(30, 64, 175, 0.3)',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(30, 64, 175, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(30, 64, 175, 0.3)';
-            }}
-          >
-            <Settings size={18} />
-            Calculate Estimation
-          </button>
+      {isLoading ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#cbd5e1', marginTop: '24px' }}>
+          Loading backend data...
         </div>
+      ) : error ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#fca5a5', marginTop: '24px' }}>
+          {error}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginTop: '32px' }}>
+          {/* Input Parameters */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            padding: '32px',
+            backdropFilter: 'blur(10px)'
+          }}>
+            <h3 style={{ fontSize: '22px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>
+              Input Parameters
+            </h3>
+            <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 32px 0' }}>
+              Enter the number of analyzed documents and detected anomalies to calculate the estimated forgery rate.
+            </p>
 
-        {/* Estimation Results */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          padding: '32px',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>
-            Estimation Results
-          </h3>
-          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '32px' }}>
-            Calculated forgery probability and risk assessment
-          </p>
+            {/* Number of Analyzed Documents */}
+            <div style={{ marginBottom: '28px' }}>
+              <label style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#cbd5e1',
+                display: 'block',
+                marginBottom: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Number of Analyzed Documents
+              </label>
+              <input
+                type='text'
+                value={analyzedDocuments}
+                onChange={(e) => handleInputChange(e, setAnalyzedDocuments)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '10px',
+                  color: '#fff',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  outline: 'none',
+                  transition: 'all 0.2s ease',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.03)';
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                }}
+              />
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '8px 0 0 0' }}>
+                Total documents processed by the authentication system
+              </p>
+            </div>
 
-          {!result ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '300px',
-              textAlign: 'center'
-            }}>
-              <div style={{
-                width: '80px',
-                height: '80px',
-                background: 'rgba(148, 163, 184, 0.1)',
-                borderRadius: '16px',
+            {/* Number of Detected Anomalies */}
+            <div style={{ marginBottom: '32px' }}>
+              <label style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#cbd5e1',
+                display: 'block',
+                marginBottom: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Number of Detected Anomalies
+              </label>
+              <input
+                type='text'
+                value={detectedAnomalies}
+                onChange={(e) => handleInputChange(e, setDetectedAnomalies)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '10px',
+                  color: '#fff',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  outline: 'none',
+                  transition: 'all 0.2s ease',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.03)';
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                }}
+              />
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '8px 0 0 0' }}>
+                Documents flagged as potentially forged (logo, font, stamp, or layout issues)
+              </p>
+            </div>
+
+            {/* Calculate Button */}
+            <button
+              onClick={calculateEstimation}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                border: 'none',
+                borderRadius: '10px',
+                color: '#fff',
+                fontSize: '15px',
+                fontWeight: '700',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '20px'
-              }}>
-                <Settings size={40} color="#64748b" />
-              </div>
-              <p style={{ fontSize: '15px', color: '#64748b', maxWidth: '300px', margin: 0 }}>
-                Enter the parameters and click calculate to see results
-              </p>
-            </div>
-          ) : (
-            <div>
-              {/* Forgery Rate */}
-              <div style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Estimated Forgery Rate
-                </div>
-                <div style={{ fontSize: '48px', fontWeight: '700', color: '#ef4444', letterSpacing: '-0.02em' }}>
-                  {result.forgeryRate}%
-                </div>
-              </div>
+                gap: '8px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+              }}
+            >
+              <Settings size={18} />
+              Calculate Estimation
+            </button>
+          </div>
 
-              {/* Confidence Level */}
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Confidence Level
-                </div>
-                <div style={{ fontSize: '36px', fontWeight: '700', color: '#3b82f6', letterSpacing: '-0.02em' }}>
-                  {result.confidenceLevel}%
-                </div>
-              </div>
+          {/* Estimation Results */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            padding: '32px',
+            backdropFilter: 'blur(10px)'
+          }}>
+            <h3 style={{ fontSize: '22px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '8px' }}>
+              Estimation Results
+            </h3>
+            <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 32px 0' }}>
+              Calculated forgery probability and risk assessment
+            </p>
 
-              {/* Risk Level */}
-              <div style={{
-                background: `${result.riskColor}15`,
-                border: `1px solid ${result.riskColor}30`,
-                borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Risk Level
-                </div>
+            {estimationResult ? (
+              <div style={{ display: 'grid', gap: '20px' }}>
+                {/* Estimated Forgery Rate */}
                 <div style={{
-                  display: 'inline-block',
-                  background: result.riskColor,
-                  color: '#fff',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  fontSize: '18px',
-                  fontWeight: '700'
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '12px',
+                  padding: '24px'
                 }}>
-                  {result.riskLevel}
+                  <div style={{ fontSize: '12px', color: '#ef4444', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                    Estimated Forgery Rate
+                  </div>
+                  <div style={{ fontSize: '48px', fontWeight: '800', color: '#ef4444' }}>
+                    {estimationResult.forgeryRate}%
+                  </div>
+                </div>
+
+                {/* Confidence Level */}
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '12px',
+                  padding: '24px'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#3b82f6', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                    Confidence Level
+                  </div>
+                  <div style={{ fontSize: '48px', fontWeight: '800', color: '#3b82f6' }}>
+                    {estimationResult.confidenceLevel}%
+                  </div>
+                </div>
+
+                {/* Risk Level */}
+                <div style={{
+                  background: `${riskColor}08`,
+                  border: `1px solid ${riskColor}20`,
+                  borderRadius: '12px',
+                  padding: '24px'
+                }}>
+                  <div style={{ fontSize: '12px', color: riskColor, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                    Risk Level Classification
+                  </div>
+                  <div style={{
+                    display: 'inline-block',
+                    background: riskColor,
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '700'
+                  }}>
+                    {estimationResult.riskLevel} Risk
+                  </div>
+                </div>
+
+                {/* Analysis Summary */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  padding: '20px'
+                }}>
+                  <p style={{ fontSize: '13px', color: '#cbd5e1', margin: 0, lineHeight: '1.6' }}>
+                    Based on {analyzedDocuments.toLocaleString()} documents analyzed with {detectedAnomalies} anomalies detected, the estimated forgery rate is <strong>{estimationResult.forgeryRate}%</strong> with a confidence level of <strong>{estimationResult.confidenceLevel}%</strong>.
+                  </p>
                 </div>
               </div>
-
-              {/* Document Breakdown */}
+            ) : (
               <div style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '20px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '280px',
+                color: '#64748b',
+                textAlign: 'center'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: '500' }}>Authentic Documents</span>
-                  <span style={{ fontSize: '16px', color: '#22c55e', fontWeight: '700' }}>{result.authenticDocs}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: '500' }}>Forged Documents</span>
-                  <span style={{ fontSize: '16px', color: '#ef4444', fontWeight: '700' }}>{result.forgedDocs}</span>
-                </div>
+                <p>Click "Calculate Estimation" to generate results</p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Risk Level Thresholds */}
+      {/* Risk Thresholds Info */}
       <div style={{
-        marginTop: '32px',
+        marginTop: '48px',
         background: 'rgba(255, 255, 255, 0.03)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '16px',
@@ -300,7 +335,7 @@ function EstimationPage() {
         backdropFilter: 'blur(10px)'
       }}>
         <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0, marginBottom: '24px' }}>
-          Risk Level Thresholds
+          Risk Level Reference
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
           {[
@@ -309,8 +344,8 @@ function EstimationPage() {
             { level: 'High Risk', range: '> 5%', color: '#ef4444', description: 'Critical forgery rate requiring immediate action' }
           ].map((item) => (
             <div key={item.level} style={{
-              background: `${item.color}10`,
-              border: `1px solid ${item.color}30`,
+              background: `${item.color}08`,
+              border: `1px solid ${item.color}20`,
               borderRadius: '12px',
               padding: '20px'
             }}>
@@ -320,7 +355,7 @@ function EstimationPage() {
                 color: '#fff',
                 padding: '6px 14px',
                 borderRadius: '6px',
-                fontSize: '13px',
+                fontSize: '12px',
                 fontWeight: '700',
                 marginBottom: '12px'
               }}>

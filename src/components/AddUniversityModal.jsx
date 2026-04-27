@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
-  const [formData, setFormData] = useState(
-    editingUniversity || {
-      name: '',
-      country: 'Tunisia',
-      email: '',
-      status: 'active'
+  const defaultForm = {
+    name: '',
+    country: 'Tunisia',
+    email: '',
+    status: 'active'
+  };
+
+  const [formData, setFormData] = useState(defaultForm);
+
+  useEffect(() => {
+    if (editingUniversity) {
+      setFormData({
+        name: editingUniversity.name || '',
+        country: editingUniversity.country || 'Tunisia',
+        email: editingUniversity.email?.replace(/^@/, '') || '',
+        status: editingUniversity.status || 'active'
+      });
+    } else {
+      setFormData(defaultForm);
     }
-  );
+  }, [editingUniversity]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,19 +34,17 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.email) {
+
+    if (!formData.name.trim() || !formData.email.trim()) {
       alert('Please fill in all required fields');
       return;
     }
 
-    onAdd(formData);
-    setFormData({
-      name: '',
-      country: 'Tunisia',
-      email: '',
-      status: 'active'
+    onAdd({
+      ...formData,
+      email: formData.email.trim()
     });
+    setFormData(defaultForm);
   };
 
   if (!isOpen) return null;
@@ -61,7 +72,6 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
         backdropFilter: 'blur(12px)'
       }}>
-        {/* Header */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -96,7 +106,6 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* University Name */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               fontSize: '13px',
@@ -110,11 +119,11 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
               University Name *
             </label>
             <input
-              type="text"
-              name="name"
+              type='text'
+              name='name'
               value={formData.name}
               onChange={handleChange}
-              placeholder="e.g., Medtech"
+              placeholder='e.g., Medtech'
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -138,7 +147,6 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
             />
           </div>
 
-          {/* Country */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               fontSize: '13px',
@@ -152,7 +160,7 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
               Country *
             </label>
             <select
-              name="country"
+              name='country'
               value={formData.country}
               onChange={handleChange}
               style={{
@@ -177,15 +185,14 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
                 e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
               }}
             >
-              <option value="Tunisia" style={{ background: '#1e293b', color: '#fff' }}>Tunisia</option>
-              <option value="Algeria" style={{ background: '#1e293b', color: '#fff' }}>Algeria</option>
-              <option value="Morocco" style={{ background: '#1e293b', color: '#fff' }}>Morocco</option>
-              <option value="Libya" style={{ background: '#1e293b', color: '#fff' }}>Libya</option>
-              <option value="Egypt" style={{ background: '#1e293b', color: '#fff' }}>Egypt</option>
+              <option value='Tunisia' style={{ background: '#1e293b', color: '#fff' }}>Tunisia</option>
+              <option value='Algeria' style={{ background: '#1e293b', color: '#fff' }}>Algeria</option>
+              <option value='Morocco' style={{ background: '#1e293b', color: '#fff' }}>Morocco</option>
+              <option value='Libya' style={{ background: '#1e293b', color: '#fff' }}>Libya</option>
+              <option value='Egypt' style={{ background: '#1e293b', color: '#fff' }}>Egypt</option>
             </select>
           </div>
 
-          {/* Email Domain */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               fontSize: '13px',
@@ -209,11 +216,11 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
                 @
               </span>
               <input
-                type="text"
-                name="email"
+                type='text'
+                name='email'
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="e.g., medtech.tn"
+                placeholder='e.g., medtech.tn'
                 style={{
                   flex: 1,
                   padding: '12px 16px',
@@ -238,7 +245,6 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
             </div>
           </div>
 
-          {/* Status */}
           <div style={{ marginBottom: '32px' }}>
             <label style={{
               fontSize: '13px',
@@ -252,7 +258,7 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
               Status
             </label>
             <select
-              name="status"
+              name='status'
               value={formData.status}
               onChange={handleChange}
               style={{
@@ -277,15 +283,14 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
                 e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
               }}
             >
-              <option value="active" style={{ background: '#1e293b', color: '#fff' }}>Active</option>
-              <option value="inactive" style={{ background: '#1e293b', color: '#fff' }}>Inactive</option>
+              <option value='active' style={{ background: '#1e293b', color: '#fff' }}>Active</option>
+              <option value='inactive' style={{ background: '#1e293b', color: '#fff' }}>Inactive</option>
             </select>
           </div>
 
-          {/* Buttons */}
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
-              type="button"
+              type='button'
               onClick={onClose}
               style={{
                 flex: 1,
@@ -311,7 +316,7 @@ function AddUniversityModal({ isOpen, onClose, onAdd, editingUniversity }) {
               Cancel
             </button>
             <button
-              type="submit"
+              type='submit'
               style={{
                 flex: 1,
                 padding: '12px 20px',
